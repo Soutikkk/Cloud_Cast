@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudCast - Weather Logger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-cloud-sun"></i>
+                <span>CloudCast</span>
+            </div>
+            <div class="nav-menu">
+                <a href="#home" class="nav-link active">Home</a>
+                <a href="#history" class="nav-link">History</a>
+                <a href="#graphs" class="nav-link">Graphs</a>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Home Section -->
+        <section id="home" class="section active">
+            <div class="container">
+                <h1 class="section-title">Weather Data Logger</h1>
+                <p class="section-subtitle">Track weather conditions and visualize data trends</p>
+                
+                <!-- Weather Form -->
+                <div class="weather-form-container">
+                    <form id="weatherForm" class="weather-form">
+                        <div class="form-group">
+                            <label for="cityInput">Enter City Name</label>
+                            <div class="input-group">
+                                <input type="text" id="cityInput" name="city" placeholder="e.g., London, New York, Tokyo" required>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i>
+                                    Get Weather
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Current Weather Display -->
+                <div id="currentWeather" class="weather-display" style="display: none;">
+                    <h3>Current Weather</h3>
+                    <div class="weather-card">
+                        <div class="weather-info">
+                            <div class="weather-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span id="currentCity"></span>
+                            </div>
+                            <div class="weather-item">
+                                <i class="fas fa-thermometer-half"></i>
+                                <span id="currentTemp"></span>°C
+                            </div>
+                            <div class="weather-item">
+                                <i class="fas fa-tint"></i>
+                                <span id="currentHumidity"></span>%
+                            </div>
+                            <div class="weather-item">
+                                <i class="fas fa-wind"></i>
+                                <span id="currentWind"></span> m/s
+                            </div>
+                            <div class="weather-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="currentTime"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Download Button -->
+                <div class="download-section">
+                    <button id="downloadBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i>
+                        Download Weather Data (CSV)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section id="history" class="section">
+            <div class="container">
+                <h2 class="section-title">Weather History</h2>
+                <div class="table-container">
+                    <table class="weather-table">
+                        <thead>
+                            <tr>
+                                <th>City</th>
+                                <th>Temperature (°C)</th>
+                                <th>Humidity (%)</th>
+                                <th>Wind Speed (m/s)</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            {% for entry in weather_history %}
+                            <tr>
+                                <td>{{ entry.city }}</td>
+                                <td>{{ entry.temperature }}</td>
+                                <td>{{ entry.humidity }}</td>
+                                <td>{{ entry.wind_speed }}</td>
+                                <td>{{ entry.date }}</td>
+                                <td>{{ entry.time }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Graphs Section -->
+        <section id="graphs" class="section">
+            <div class="container">
+                <h2 class="section-title">Weather Data Visualization</h2>
+                
+                <!-- Graph Controls -->
+                <div class="graph-controls">
+                    <div class="form-group">
+                        <label for="graphParameter">Select Parameter to Graph:</label>
+                        <select id="graphParameter" class="form-select">
+                            <option value="temperature">Temperature</option>
+                            <option value="humidity">Humidity</option>
+                            <option value="wind_speed">Wind Speed</option>
+                        </select>
+                        <button id="generateGraphBtn" class="btn btn-primary">
+                            <i class="fas fa-chart-line"></i>
+                            Generate Graph
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Graph Display -->
+                <div id="graphContainer" class="graph-container">
+                    <div id="graphPlaceholder" class="graph-placeholder">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Select a parameter and click "Generate Graph" to visualize your weather data</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading weather data...</p>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        <span id="notificationText"></span>
+        <button id="notificationClose" class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <script>
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        body.classList.add(savedTheme);
+        updateThemeIcon(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark');
+            const currentTheme = body.classList.contains('dark') ? 'dark' : 'light';
+            localStorage.setItem('theme', currentTheme);
+            updateThemeIcon(currentTheme);
+        });
+        
+        function updateThemeIcon(theme) {
+            const icon = themeToggle.querySelector('i');
+            icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        // Navigation functionality
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.section');
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                
+                // Update active nav link
+                navLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                
+                // Show target section
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                    if (section.id === targetId) {
+                        section.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // Weather form submission
+        const weatherForm = document.getElementById('weatherForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        
+        weatherForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cityInput = document.getElementById('cityInput');
+            const city = cityInput.value.trim();
+            
+            if (!city) {
+                showNotification('Please enter a city name', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const formData = new FormData();
+                formData.append('city', city);
+                
+                const response = await fetch('/fetch_weather', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Weather data saved successfully!', 'success');
+                    displayCurrentWeather(result.data);
+                    updateHistoryTable();
+                } else {
+                    showNotification(result.error || 'Failed to fetch weather data', 'error');
+                }
+            } catch (error) {
+                showNotification('Network error. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        });
+        
+        function displayCurrentWeather(data) {
+            document.getElementById('currentCity').textContent = data.city;
+            document.getElementById('currentTemp').textContent = data.temperature;
+            document.getElementById('currentHumidity').textContent = data.humidity;
+            document.getElementById('currentWind').textContent = data.wind_speed;
+            document.getElementById('currentTime').textContent = `${data.date} ${data.time}`;
+            document.getElementById('currentWeather').style.display = 'block';
+        }
+        
+        async function updateHistoryTable() {
+            try {
+                const response = await fetch('/get_history');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('historyTableBody');
+                tbody.innerHTML = '';
+                
+                data.forEach(entry => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${entry.city}</td>
+                        <td>${entry.temperature}</td>
+                        <td>${entry.humidity}</td>
+                        <td>${entry.wind_speed}</td>
+                        <td>${entry.date}</td>
+                        <td>${entry.time}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error updating history table:', error);
+            }
+        }
+        
+        // Download CSV functionality
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.addEventListener('click', () => {
+            window.location.href = '/download_csv';
+        });
+        
+        // Graph generation
+        const generateGraphBtn = document.getElementById('generateGraphBtn');
+        const graphContainer = document.getElementById('graphContainer');
+        const graphPlaceholder = document.getElementById('graphPlaceholder');
+        
+        generateGraphBtn.addEventListener('click', async () => {
+            const parameter = document.getElementById('graphParameter').value;
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`/generate_graph?parameter=${parameter}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    graphPlaceholder.style.display = 'none';
+                    graphContainer.innerHTML = `
+                        <img src="data:image/png;base64,${result.graph}" alt="Weather Graph" class="weather-graph">
+                    `;
+                } else {
+                    showNotification(result.error || 'Failed to generate graph', 'error');
+                }
+            } catch (error) {
+                showNotification('Error generating graph', 'error');
+            } finally {
+                showLoading(false);
+            }
+        });
+        
+        // Utility functions
+        function showLoading(show) {
+            loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
+        
+        function showNotification(message, type = 'info') {
+            notificationText.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Close notification
+        document.getElementById('notificationClose').addEventListener('click', () => {
+            notification.classList.remove('show');
+        });
+    </script>
+</body>
+</html>
+
