@@ -4,6 +4,7 @@ import csv
 import os
 from datetime import datetime
 import matplotlib
+from dotenv import load_dotenv
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import io
@@ -11,9 +12,10 @@ import base64
 import json
 
 app = Flask(__name__)
+load_dotenv()
 
 # OpenWeather API configuration
-API_KEY = "6cc8aa51aea99c9cf8b90546d059dac6"  # OpenWeather API key
+API_KEY = os.getenv("API_KEY")  # Loaded from .env
 BASE_URL = "http://api.openweathermap.org/data/2.5/weather"
 FORECAST_URL = "http://api.openweathermap.org/data/2.5/forecast"
 
